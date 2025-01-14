@@ -35,6 +35,7 @@ let dragStartX = 0;
 let dragStartY = 0;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
+let isClickMode = false;  // 添加这个变量来区分点击模式和拖动模式
 
 // 在游戏状态变量声明后添加历史记录数组
 let history = [];
@@ -60,6 +61,7 @@ function handleInputStart(x, y) {
     // 如果点击的是已选中的槽，则取消选中
     if (selectedSlot === clickedSlot) {
         selectedSlot = null;
+        isClickMode = false;
         drawGame();
         return;
     }
@@ -68,11 +70,12 @@ function handleInputStart(x, y) {
     if (selectedSlot !== null) return;
     
     selectedSlot = clickedSlot;
+    isClickMode = true;  // 初始设置为点击模式
     drawGame();
 }
 
 function handleInputMove(x, y) {
-    if (!selectedSlot) return;
+    if (!selectedSlot || isClickMode) return;  // 如果是点击模式，不处理移动
     
     // 检查是否应该开始拖动
     if (!isDragging) {
@@ -82,6 +85,7 @@ function handleInputMove(x, y) {
         );
         if (moveDistance > 5) {  // 移动超过5像素才开始拖动
             isDragging = true;
+            isClickMode = false;  // 切换到拖动模式
             draggedBall = slots[selectedSlot][slots[selectedSlot].length - 1];
             const ballCenterX = selectedSlot * config.slotWidth + 20 + config.slotWidth/2;
             const ballCenterY = config.slotHeight - (slots[selectedSlot].length - 1) * (config.ballRadius * 2) + 20;
@@ -90,7 +94,7 @@ function handleInputMove(x, y) {
         }
     }
 
-    // 只有在拖动状态下才显示拖动动画
+    // 只有在拖动模式下才显示拖动动画
     if (isDragging) {
         drawGame();
         // 绘制拖动的球
@@ -115,32 +119,16 @@ function handleInputEnd(x, y, isRightClick = false) {
     const targetSlot = getSlotIndex(x, y);
     const timeDiff = Date.now() - dragStartTime;
     
-    // 如果是快速点击同一个槽位，不做任何操作（因为在 handleInputStart 中已经处理）
+    // 如果是快速点击同一个槽位，不做任何操作
     if (!isDragging && timeDiff < 200 && targetSlot === selectedSlot) {
         return;
     }
-    
-    // 如果是拖动操作，则在释放时移动球
-    if (isDragging) {
-        if (targetSlot !== -1 && targetSlot !== selectedSlot && slots[targetSlot].length < config.maxBalls) {
-            saveToHistory();
-            const ball = slots[selectedSlot].pop();
-            slots[targetSlot].push(ball);
-            moveCount++;
-            updateMoveCount();
-            saveGameState();
-            checkGameComplete();
-        }
-        isDragging = false;
-        draggedBall = null;
-        selectedSlot = null;
-    } 
-    // 如果是点击操作
-    else if (targetSlot !== -1 && targetSlot !== selectedSlot) {
+
+    if (targetSlot !== -1 && targetSlot !== selectedSlot) {
         if (slots[targetSlot].length < config.maxBalls) {
             saveToHistory();
             
-            if (isRightClick) {
+            if (isRightClick || isDragging) {
                 // 移动所有相同颜色的球
                 const sourceColor = slots[selectedSlot][slots[selectedSlot].length - 1];
                 const availableSpace = config.maxBalls - slots[targetSlot].length;
@@ -166,10 +154,14 @@ function handleInputEnd(x, y, isRightClick = false) {
             updateMoveCount();
             saveGameState();
             checkGameComplete();
-            selectedSlot = null;
         }
     }
 
+    // 重置状态
+    isDragging = false;
+    isClickMode = false;
+    draggedBall = null;
+    selectedSlot = null;
     drawGame();
 }
 
