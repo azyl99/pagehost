@@ -57,6 +57,13 @@ function handleInputStart(x, y) {
     dragStartX = x;
     dragStartY = y;
     
+    // 如果点击的是已选中的槽，则取消选中
+    if (selectedSlot === clickedSlot) {
+        selectedSlot = null;
+        drawGame();
+        return;
+    }
+    
     // 如果已经有选中的槽，不开始任何操作
     if (selectedSlot !== null) return;
     
@@ -106,6 +113,12 @@ function handleInputEnd(x, y, isRightClick = false) {
     if (!selectedSlot) return;
 
     const targetSlot = getSlotIndex(x, y);
+    const timeDiff = Date.now() - dragStartTime;
+    
+    // 如果是快速点击同一个槽位，不做任何操作（因为在 handleInputStart 中已经处理）
+    if (!isDragging && timeDiff < 200 && targetSlot === selectedSlot) {
+        return;
+    }
     
     // 如果是拖动操作，则在释放时移动球
     if (isDragging) {
