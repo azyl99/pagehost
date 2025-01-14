@@ -353,6 +353,7 @@ function startGame() {
     if (!loadGameState()) {
         initGame();
     }
+    updateBestScore();  // 添加这行
     drawGame();
 }
 
