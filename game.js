@@ -45,6 +45,7 @@ function initGame() {
     // 设置画布尺寸
     canvas.width = config.slots * config.slotWidth + 40;
     canvas.height = config.slotHeight + 40;
+    updateCanvasStyle();  // 添加这行
     
     // 重置移动计数
     moveCount = 0;
@@ -259,15 +260,18 @@ canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
 canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-// 添加获取触摸坐标的辅助函数
+// 修改获取触摸坐标的辅助函数
 function getTouchPos(canvas, touch) {
     const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;    // 计算X轴缩放比例
-    const scaleY = canvas.height / rect.height;   // 计算Y轴缩放比例
+    const devicePixelRatio = window.devicePixelRatio || 1;
     
+    // 计算画布在页面上的实际显示尺寸与其原始尺寸的比例
+    const displayScale = rect.width / canvas.width;
+    
+    // 计算相对于画布的坐标
     return {
-        x: (touch.clientX - rect.left) * scaleX,
-        y: (touch.clientY - rect.top) * scaleY
+        x: (touch.clientX - rect.left) / displayScale,
+        y: (touch.clientY - rect.top) / displayScale
     };
 }
 
@@ -360,3 +364,22 @@ canvas.style.touchAction = 'none';
 canvas.style.width = '100%';
 canvas.style.maxWidth = `${config.slots * config.slotWidth + 40}px`;
 canvas.style.height = 'auto'; 
+
+// 修改 canvas 样式设置
+function updateCanvasStyle() {
+    const containerWidth = window.innerWidth;
+    const maxWidth = config.slots * config.slotWidth + 40;
+    
+    // 设置画布的显示尺寸
+    if (containerWidth < maxWidth) {
+        const scale = containerWidth / maxWidth;
+        canvas.style.width = '100%';
+        canvas.style.height = `${config.slotHeight * scale}px`;
+    } else {
+        canvas.style.width = `${maxWidth}px`;
+        canvas.style.height = `${config.slotHeight + 40}px`;
+    }
+}
+
+// 添加窗口大小改变事件监听
+window.addEventListener('resize', updateCanvasStyle); 
