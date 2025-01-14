@@ -404,11 +404,11 @@ function updateBestScore() {
 
 // 修改检查游戏完成的函数
 function checkGameComplete() {
-    // 检查每个非空槽是否都是相同颜色的球
+    // 检查每个非空槽是否都是被相同颜色的球填满
     for (let i = 0; i < config.slots; i++) {
         if (slots[i].length > 0) {
             const color = slots[i][0];
-            if (!slots[i].every(ball => ball === color)) {
+            if (!slots[i].every(ball => ball === color) || slots[i].length != 10) {
                 return false;
             }
         }
