@@ -37,6 +37,11 @@ let selectedSlots = new Set();
 let history = [];
 const MAX_HISTORY = 50;  // 最大历史记录数量
 
+// 在游戏状态变量声明部分添加触摸相关变量
+let touchStartTime = 0;
+let touchStartSlot = null;
+let touchMoved = false;  // 添加这个变量来跟踪是否发生了移动
+
 function updateMoveCount() {
     document.getElementById('moveCount').textContent = moveCount;
 }
@@ -275,7 +280,7 @@ function getTouchPos(canvas, touch) {
     };
 }
 
-// 修改 handleTouchStart 函数
+// 修改触摸事件处理函数
 function handleTouchStart(e) {
     e.preventDefault();
     
@@ -287,6 +292,7 @@ function handleTouchStart(e) {
 
     touchStartTime = Date.now();
     touchStartSlot = clickedSlot;
+    touchMoved = false;  // 重置移动标志
 
     if (slots[clickedSlot].length > 0) {
         selectedSlot = clickedSlot;
@@ -296,19 +302,25 @@ function handleTouchStart(e) {
 
 function handleTouchMove(e) {
     e.preventDefault();
+    touchMoved = true;  // 标记发生了移动
 }
 
 function handleTouchEnd(e) {
     e.preventDefault();
     
-    if (!selectedSlot) return;
-
     const touch = e.changedTouches[0];
     const pos = getTouchPos(canvas, touch);
     const targetSlot = getSlotIndex(pos.x, pos.y);
     
-    if (targetSlot === -1 || targetSlot === selectedSlot) {
+    // 如果没有选中的槽，或者触摸移动了很多，就重置选择
+    if (!selectedSlot || (touchMoved && Math.abs(targetSlot - touchStartSlot) > 1)) {
         selectedSlot = null;
+        drawGame();
+        return;
+    }
+
+    // 如果目标槽无效或与源槽相同，保持选中状态
+    if (targetSlot === -1 || targetSlot === selectedSlot) {
         drawGame();
         return;
     }
@@ -316,7 +328,7 @@ function handleTouchEnd(e) {
     // 检查是否是长按（超过500毫秒）
     const isLongPress = Date.now() - touchStartTime > 500;
 
-    if (isLongPress) {
+    if (isLongPress && !touchMoved) {
         // 模拟右键点击行为（移动相同颜色的球）
         const sourceColor = slots[selectedSlot][slots[selectedSlot].length - 1];
         const availableSpace = config.maxBalls - slots[targetSlot].length;
@@ -337,7 +349,8 @@ function handleTouchEnd(e) {
             updateMoveCount();
             saveGameState();
         }
-    } else {
+        selectedSlot = null;
+    } else if (!touchMoved) {
         // 模拟左键点击行为（移动单个球）
         if (slots[targetSlot].length < config.maxBalls) {
             saveToHistory();
@@ -346,16 +359,12 @@ function handleTouchEnd(e) {
             moveCount++;
             updateMoveCount();
             saveGameState();
+            selectedSlot = null;
         }
     }
 
-    selectedSlot = null;
     drawGame();
 }
-
-// 添加触摸开始时间变量
-let touchStartTime = 0;
-let touchStartSlot = null;
 
 // 修改 canvas 样式以禁用移动设备上的默认触摸行为
 canvas.style.touchAction = 'none'; 
