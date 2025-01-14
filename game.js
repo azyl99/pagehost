@@ -45,6 +45,17 @@ let touchMoved = false;  // 添加这个变量来跟踪是否发生了移动
 // 在游戏配置后添加最佳记录相关变量
 let bestScore = parseInt(localStorage.getItem('ballGameBestScore')) || Infinity;
 
+// 在游戏状态变量声明部分添加拖动相关变量
+let draggedBall = null;
+let dragStartY = 0;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+// 添加鼠标事件监听器
+canvas.addEventListener('mousedown', handleMouseDown);
+canvas.addEventListener('mousemove', handleMouseMove);
+canvas.addEventListener('mouseup', handleMouseUp);
+
 function updateMoveCount() {
     document.getElementById('moveCount').textContent = moveCount;
 }
@@ -83,6 +94,11 @@ function drawGame() {
         
         // 绘制槽中的球
         slots[i].forEach((colorIndex, index) => {
+            // 如果是正在拖动的球就跳过
+            if (isDragging && i === selectedSlot && index === slots[i].length - 1) {
+                return;
+            }
+            
             const y = config.slotHeight - (index + 1) * (config.ballRadius * 2) + 20;
             ctx.beginPath();
             ctx.arc(
@@ -433,4 +449,84 @@ function checkGameComplete() {
         }, 100);
     }
     return true;
+}
+
+// 修改鼠标事件处理函数
+function handleMouseDown(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const clickedSlot = getSlotIndex(x, y);
+    if (clickedSlot === -1 || slots[clickedSlot].length === 0) return;
+
+    // 如果槽中有球，就可以开始拖动
+    isDragging = true;
+    selectedSlot = clickedSlot;
+    draggedBall = slots[clickedSlot][slots[clickedSlot].length - 1];
+    
+    // 计算球的中心位置（用于拖动时的显示）
+    const ballCenterX = clickedSlot * config.slotWidth + 20 + config.slotWidth/2;
+    const ballCenterY = config.slotHeight - (slots[clickedSlot].length - 1) * (config.ballRadius * 2) + 20;
+    
+    dragOffsetX = ballCenterX - x;
+    dragOffsetY = ballCenterY - y;
+}
+
+function handleMouseMove(e) {
+    if (!isDragging) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // 重绘游戏状态
+    drawGame();
+
+    // 绘制正在拖动的球
+    ctx.beginPath();
+    ctx.arc(
+        x + dragOffsetX,
+        y + dragOffsetY,
+        config.ballRadius - 2,
+        0,
+        Math.PI * 2
+    );
+    ctx.fillStyle = config.colors[draggedBall];
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.stroke();
+}
+
+function handleMouseUp(e) {
+    if (!isDragging) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    const targetSlot = getSlotIndex(x, y);
+    
+    if (targetSlot !== -1 && 
+        targetSlot !== selectedSlot && 
+        slots[targetSlot].length < config.maxBalls) {
+        // 保存历史记录
+        saveToHistory();
+        
+        // 移动球
+        const ball = slots[selectedSlot].pop();
+        slots[targetSlot].push(ball);
+        moveCount++;
+        updateMoveCount();
+        saveGameState();
+        checkGameComplete();
+    }
+
+    // 重置拖动状态
+    isDragging = false;
+    draggedBall = null;
+    selectedSlot = null;
+    
+    // 重绘游戏状态
+    drawGame();
 } 
