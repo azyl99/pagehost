@@ -24,14 +24,17 @@ const config = {
 
 // 游戏状态
 let slots = [];
-let selectedBall = null;
 let selectedSlot = null;
 let moveCount = 0;
 
 // 添加选择状态变量
 let isDragging = false;
+let draggedBall = null;
+let dragStartTime = 0;
 let dragStartX = 0;
-let selectedSlots = new Set();
+let dragStartY = 0;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
 // 在游戏状态变量声明后添加历史记录数组
 let history = [];
@@ -45,16 +48,175 @@ let touchMoved = false;  // 添加这个变量来跟踪是否发生了移动
 // 在游戏配置后添加最佳记录相关变量
 let bestScore = parseInt(localStorage.getItem('ballGameBestScore')) || Infinity;
 
-// 在游戏状态变量声明部分添加拖动相关变量
-let draggedBall = null;
-let dragStartY = 0;
-let dragOffsetX = 0;
-let dragOffsetY = 0;
+// 统一的输入处理函数
+function handleInputStart(x, y) {
+    const clickedSlot = getSlotIndex(x, y);
+    if (clickedSlot === -1 || slots[clickedSlot].length === 0) return;
 
-// 添加鼠标事件监听器
-canvas.addEventListener('mousedown', handleMouseDown);
-canvas.addEventListener('mousemove', handleMouseMove);
-canvas.addEventListener('mouseup', handleMouseUp);
+    dragStartTime = Date.now();
+    dragStartX = x;
+    dragStartY = y;
+    
+    // 如果已经有选中的槽，不开始任何操作
+    if (selectedSlot !== null) return;
+    
+    selectedSlot = clickedSlot;
+    drawGame();
+}
+
+function handleInputMove(x, y) {
+    if (!selectedSlot) return;
+    
+    // 检查是否应该开始拖动
+    if (!isDragging) {
+        const moveDistance = Math.sqrt(
+            Math.pow(x - dragStartX, 2) + 
+            Math.pow(y - dragStartY, 2)
+        );
+        if (moveDistance > 5) {  // 移动超过5像素才开始拖动
+            isDragging = true;
+            draggedBall = slots[selectedSlot][slots[selectedSlot].length - 1];
+            const ballCenterX = selectedSlot * config.slotWidth + 20 + config.slotWidth/2;
+            const ballCenterY = config.slotHeight - (slots[selectedSlot].length - 1) * (config.ballRadius * 2) + 20;
+            dragOffsetX = ballCenterX - x;
+            dragOffsetY = ballCenterY - y;
+        }
+    }
+
+    // 只有在拖动状态下才显示拖动动画
+    if (isDragging) {
+        drawGame();
+        // 绘制拖动的球
+        ctx.beginPath();
+        ctx.arc(
+            x + dragOffsetX,
+            y + dragOffsetY,
+            config.ballRadius - 2,
+            0,
+            Math.PI * 2
+        );
+        ctx.fillStyle = config.colors[draggedBall];
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.stroke();
+    }
+}
+
+function handleInputEnd(x, y, isRightClick = false) {
+    if (!selectedSlot) return;
+
+    const targetSlot = getSlotIndex(x, y);
+    
+    // 如果是拖动操作，则在释放时移动球
+    if (isDragging) {
+        if (targetSlot !== -1 && targetSlot !== selectedSlot && slots[targetSlot].length < config.maxBalls) {
+            saveToHistory();
+            const ball = slots[selectedSlot].pop();
+            slots[targetSlot].push(ball);
+            moveCount++;
+            updateMoveCount();
+            saveGameState();
+            checkGameComplete();
+        }
+        isDragging = false;
+        draggedBall = null;
+        selectedSlot = null;
+    } 
+    // 如果是点击操作
+    else if (targetSlot !== -1 && targetSlot !== selectedSlot) {
+        if (slots[targetSlot].length < config.maxBalls) {
+            saveToHistory();
+            
+            if (isRightClick) {
+                // 移动所有相同颜色的球
+                const sourceColor = slots[selectedSlot][slots[selectedSlot].length - 1];
+                const availableSpace = config.maxBalls - slots[targetSlot].length;
+                let ballsMoved = 0;
+                
+                for (let i = slots[selectedSlot].length - 1; i >= 0; i--) {
+                    if (slots[selectedSlot][i] === sourceColor && ballsMoved < availableSpace) {
+                        slots[targetSlot].push(slots[selectedSlot][i]);
+                        ballsMoved++;
+                    } else {
+                        break;
+                    }
+                }
+                slots[selectedSlot].splice(slots[selectedSlot].length - ballsMoved, ballsMoved);
+                moveCount += ballsMoved;
+            } else {
+                // 移动单个球
+                const ball = slots[selectedSlot].pop();
+                slots[targetSlot].push(ball);
+                moveCount++;
+            }
+            
+            updateMoveCount();
+            saveGameState();
+            checkGameComplete();
+            selectedSlot = null;
+        }
+    }
+
+    drawGame();
+}
+
+// 鼠标事件监听器
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleInputStart(x, y);
+});
+
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleInputMove(x, y);
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleInputEnd(x, y, e.button === 2);
+});
+
+// 触摸事件监听器
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    const x = (touch.clientX - rect.left) * scale;
+    const y = (touch.clientY - rect.top) * scale;
+    handleInputStart(x, y);
+});
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    const x = (touch.clientX - rect.left) * scale;
+    const y = (touch.clientY - rect.top) * scale;
+    handleInputMove(x, y);
+});
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    const x = (touch.clientX - rect.left) * scale;
+    const y = (touch.clientY - rect.top) * scale;
+    handleInputEnd(x, y);
+});
+
+// 阻止右键菜单
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+});
 
 function updateMoveCount() {
     document.getElementById('moveCount').textContent = moveCount;
@@ -181,87 +343,6 @@ function loadGameState() {
     return false;
 }
 
-// 添加右键点击事件处理
-canvas.addEventListener('contextmenu', (e) => {
-    e.preventDefault(); // 阻止默认的右键菜单
-    
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const clickedSlot = getSlotIndex(x, y);
-    if (clickedSlot === -1) return;
-
-    if (selectedSlot === null) {
-        if (slots[clickedSlot].length > 0) {
-            selectedSlot = clickedSlot;
-        }
-    } else {
-        if (clickedSlot !== selectedSlot) {
-            // 获取选中槽最上面球的颜色
-            const sourceColor = slots[selectedSlot][slots[selectedSlot].length - 1];
-            // 计算目标槽还能接收多少个球
-            const availableSpace = config.maxBalls - slots[clickedSlot].length;
-            
-            if (availableSpace > 0) {
-                saveToHistory();
-                let ballsMoved = 0;
-                // 从上往下遍历源槽中的球
-                for (let i = slots[selectedSlot].length - 1; i >= 0; i--) {
-                    // 如果颜色相同且目标槽还有空间
-                    if (slots[selectedSlot][i] === sourceColor && ballsMoved < availableSpace) {
-                        slots[clickedSlot].push(slots[selectedSlot][i]);
-                        ballsMoved++;
-                    } else {
-                        // 保留不同颜色的球或超出空间的球
-                        break;
-                    }
-                }
-                // 从源槽移除已经移动的球
-                slots[selectedSlot].splice(slots[selectedSlot].length - ballsMoved, ballsMoved);
-                
-                // 更新移动次数（每个球都算一次）
-                moveCount += ballsMoved;
-                updateMoveCount();
-                saveGameState();
-                checkGameComplete();  // 添加这行
-            }
-        }
-        selectedSlot = null;
-    }
-    
-    drawGame();
-});
-
-// 修改原有的左键点击事件，确保两个事件处理逻辑一致
-canvas.addEventListener('click', (e) => {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const clickedSlot = getSlotIndex(x, y);
-    if (clickedSlot === -1) return;
-
-    if (selectedSlot === null) {
-        if (slots[clickedSlot].length > 0) {
-            selectedSlot = clickedSlot;
-        }
-    } else {
-        if (clickedSlot !== selectedSlot && slots[clickedSlot].length < config.maxBalls) {
-            saveToHistory();
-            const ball = slots[selectedSlot].pop();
-            slots[clickedSlot].push(ball);
-            moveCount++;
-            updateMoveCount();
-            saveGameState();
-            checkGameComplete();  // 添加这行
-        }
-        selectedSlot = null;
-    }
-    
-    drawGame();
-});
-
 // 修改 startGame 函数
 function startGame() {
     if (!loadGameState()) {
@@ -281,114 +362,6 @@ function resetGame() {
 
 // 开始游戏
 startGame(); 
-
-// 在现有事件监听器之后添加触屏事件支持
-canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-
-// 修改获取触摸坐标的辅助函数
-function getTouchPos(canvas, touch) {
-    const rect = canvas.getBoundingClientRect();
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    
-    // 计算画布在页面上的实际显示尺寸与其原始尺寸的比例
-    const displayScale = rect.width / canvas.width;
-    
-    // 计算相对于画布的坐标
-    return {
-        x: (touch.clientX - rect.left) / displayScale,
-        y: (touch.clientY - rect.top) / displayScale
-    };
-}
-
-// 修改触摸事件处理函数
-function handleTouchStart(e) {
-    e.preventDefault();
-    
-    const touch = e.touches[0];
-    const pos = getTouchPos(canvas, touch);
-    const clickedSlot = getSlotIndex(pos.x, pos.y);
-    
-    if (clickedSlot === -1) return;
-
-    touchStartTime = Date.now();
-    touchStartSlot = clickedSlot;
-    touchMoved = false;  // 重置移动标志
-
-    if (slots[clickedSlot].length > 0) {
-        selectedSlot = clickedSlot;
-        drawGame();
-    }
-}
-
-function handleTouchMove(e) {
-    e.preventDefault();
-    touchMoved = true;  // 标记发生了移动
-}
-
-function handleTouchEnd(e) {
-    e.preventDefault();
-    
-    const touch = e.changedTouches[0];
-    const pos = getTouchPos(canvas, touch);
-    const targetSlot = getSlotIndex(pos.x, pos.y);
-    
-    // 如果没有选中的槽，或者触摸移动了很多，就重置选择
-    if (!selectedSlot || (touchMoved && Math.abs(targetSlot - touchStartSlot) > 1)) {
-        selectedSlot = null;
-        drawGame();
-        return;
-    }
-
-    // 如果目标槽无效或与源槽相同，保持选中状态
-    if (targetSlot === -1 || targetSlot === selectedSlot) {
-        drawGame();
-        return;
-    }
-
-    // 检查是否是长按（超过500毫秒）
-    const isLongPress = Date.now() - touchStartTime > 500;
-
-    if (isLongPress && !touchMoved) {
-        // 模拟右键点击行为（移动相同颜色的球）
-        const sourceColor = slots[selectedSlot][slots[selectedSlot].length - 1];
-        const availableSpace = config.maxBalls - slots[targetSlot].length;
-        
-        if (availableSpace > 0) {
-            saveToHistory();
-            let ballsMoved = 0;
-            for (let i = slots[selectedSlot].length - 1; i >= 0; i--) {
-                if (slots[selectedSlot][i] === sourceColor && ballsMoved < availableSpace) {
-                    slots[targetSlot].push(slots[selectedSlot][i]);
-                    ballsMoved++;
-                } else {
-                    break;
-                }
-            }
-            slots[selectedSlot].splice(slots[selectedSlot].length - ballsMoved, ballsMoved);
-            moveCount += ballsMoved;
-            updateMoveCount();
-            saveGameState();
-            checkGameComplete();  // 添加这行
-        }
-        selectedSlot = null;
-    } else if (!touchMoved) {
-        // 模拟左键点击行为（移动单个球）
-        if (slots[targetSlot].length < config.maxBalls) {
-            saveToHistory();
-            const ball = slots[selectedSlot].pop();
-            slots[targetSlot].push(ball);
-            moveCount++;
-            updateMoveCount();
-            saveGameState();
-            checkGameComplete();  // 添加这行
-            selectedSlot = null;
-        }
-    }
-
-    drawGame();
-}
 
 // 修改 canvas 样式以禁用移动设备上的默认触摸行为
 canvas.style.touchAction = 'none'; 
@@ -449,84 +422,4 @@ function checkGameComplete() {
         }, 100);
     }
     return true;
-}
-
-// 修改鼠标事件处理函数
-function handleMouseDown(e) {
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const clickedSlot = getSlotIndex(x, y);
-    if (clickedSlot === -1 || slots[clickedSlot].length === 0) return;
-
-    // 如果槽中有球，就可以开始拖动
-    isDragging = true;
-    selectedSlot = clickedSlot;
-    draggedBall = slots[clickedSlot][slots[clickedSlot].length - 1];
-    
-    // 计算球的中心位置（用于拖动时的显示）
-    const ballCenterX = clickedSlot * config.slotWidth + 20 + config.slotWidth/2;
-    const ballCenterY = config.slotHeight - (slots[clickedSlot].length - 1) * (config.ballRadius * 2) + 20;
-    
-    dragOffsetX = ballCenterX - x;
-    dragOffsetY = ballCenterY - y;
-}
-
-function handleMouseMove(e) {
-    if (!isDragging) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // 重绘游戏状态
-    drawGame();
-
-    // 绘制正在拖动的球
-    ctx.beginPath();
-    ctx.arc(
-        x + dragOffsetX,
-        y + dragOffsetY,
-        config.ballRadius - 2,
-        0,
-        Math.PI * 2
-    );
-    ctx.fillStyle = config.colors[draggedBall];
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.stroke();
-}
-
-function handleMouseUp(e) {
-    if (!isDragging) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    
-    const targetSlot = getSlotIndex(x, y);
-    
-    if (targetSlot !== -1 && 
-        targetSlot !== selectedSlot && 
-        slots[targetSlot].length < config.maxBalls) {
-        // 保存历史记录
-        saveToHistory();
-        
-        // 移动球
-        const ball = slots[selectedSlot].pop();
-        slots[targetSlot].push(ball);
-        moveCount++;
-        updateMoveCount();
-        saveGameState();
-        checkGameComplete();
-    }
-
-    // 重置拖动状态
-    isDragging = false;
-    draggedBall = null;
-    selectedSlot = null;
-    
-    // 重绘游戏状态
-    drawGame();
 } 
