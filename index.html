@@ -42,6 +42,10 @@
             font-size: 18px;
             margin-bottom: 15px;
             color: #333;
+            text-align: center;
+        }
+        .counter div {
+            margin: 5px 0;
         }
         .controls button {
             margin: 0 5px;
@@ -51,7 +55,10 @@
 <body>
     <canvas id="gameCanvas"></canvas>
     <div class="controls">
-        <div class="counter">移动次数：<span id="moveCount">0</span></div>
+        <div class="counter">
+            <div>移动次数：<span id="moveCount">0</span></div>
+            <div>最佳记录：<span id="bestScore">暂无</span></div>
+        </div>
         <button onclick="resetGame()">重新开始</button>
         <button onclick="undo()">撤回</button>
     </div>

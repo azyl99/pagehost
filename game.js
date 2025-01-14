@@ -42,6 +42,9 @@ let touchStartTime = 0;
 let touchStartSlot = null;
 let touchMoved = false;  // 添加这个变量来跟踪是否发生了移动
 
+// 在游戏配置后添加最佳记录相关变量
+let bestScore = parseInt(localStorage.getItem('ballGameBestScore')) || Infinity;
+
 function updateMoveCount() {
     document.getElementById('moveCount').textContent = moveCount;
 }
@@ -205,6 +208,7 @@ canvas.addEventListener('contextmenu', (e) => {
                 moveCount += ballsMoved;
                 updateMoveCount();
                 saveGameState();
+                checkGameComplete();  // 添加这行
             }
         }
         selectedSlot = null;
@@ -234,6 +238,7 @@ canvas.addEventListener('click', (e) => {
             moveCount++;
             updateMoveCount();
             saveGameState();
+            checkGameComplete();  // 添加这行
         }
         selectedSlot = null;
     }
@@ -255,6 +260,7 @@ function resetGame() {
     history = [];  // 清空历史记录
     initGame();
     drawGame();
+    updateBestScore();  // 更新显示的最佳记录
 }
 
 // 开始游戏
@@ -348,6 +354,7 @@ function handleTouchEnd(e) {
             moveCount += ballsMoved;
             updateMoveCount();
             saveGameState();
+            checkGameComplete();  // 添加这行
         }
         selectedSlot = null;
     } else if (!touchMoved) {
@@ -359,6 +366,7 @@ function handleTouchEnd(e) {
             moveCount++;
             updateMoveCount();
             saveGameState();
+            checkGameComplete();  // 添加这行
             selectedSlot = null;
         }
     }
@@ -392,3 +400,37 @@ function updateCanvasStyle() {
 
 // 添加窗口大小改变事件监听
 window.addEventListener('resize', updateCanvasStyle); 
+
+// 添加更新最佳记录的函数
+function updateBestScore() {
+    const bestScoreElement = document.getElementById('bestScore');
+    bestScoreElement.textContent = bestScore === Infinity ? '暂无' : bestScore;
+}
+
+// 修改检查游戏完成的函数
+function checkGameComplete() {
+    // 检查每个非空槽是否都是相同颜色的球
+    for (let i = 0; i < config.slots; i++) {
+        if (slots[i].length > 0) {
+            const color = slots[i][0];
+            if (!slots[i].every(ball => ball === color)) {
+                return false;
+            }
+        }
+    }
+    
+    // 如果完成了，更新最佳记录
+    if (moveCount < bestScore) {
+        bestScore = moveCount;
+        localStorage.setItem('ballGameBestScore', bestScore);
+        updateBestScore();
+        setTimeout(() => {
+            alert(`恭喜！你创造了新的最佳记录：${moveCount}步！`);
+        }, 100);
+    } else {
+        setTimeout(() => {
+            alert(`恭喜！你完成了游戏，共用了${moveCount}步！\n当前最佳记录是：${bestScore}步`);
+        }, 100);
+    }
+    return true;
+} 
