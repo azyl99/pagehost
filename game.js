@@ -253,3 +253,98 @@ function resetGame() {
 
 // 开始游戏
 startGame(); 
+
+// 在现有事件监听器之后添加触屏事件支持
+canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+// 添加触屏事件处理函数
+function handleTouchStart(e) {
+    e.preventDefault(); // 阻止默认滚动行为
+    
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    const clickedSlot = getSlotIndex(x, y);
+    if (clickedSlot === -1) return;
+
+    // 记录开始触摸的时间，用于区分点击和长按
+    touchStartTime = Date.now();
+    touchStartSlot = clickedSlot;
+
+    if (slots[clickedSlot].length > 0) {
+        selectedSlot = clickedSlot;
+        drawGame();
+    }
+}
+
+function handleTouchMove(e) {
+    e.preventDefault();
+}
+
+function handleTouchEnd(e) {
+    e.preventDefault();
+    
+    if (!selectedSlot) return;
+
+    const touch = e.changedTouches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    const targetSlot = getSlotIndex(x, y);
+    if (targetSlot === -1 || targetSlot === selectedSlot) {
+        selectedSlot = null;
+        drawGame();
+        return;
+    }
+
+    // 检查是否是长按（超过500毫秒）
+    const isLongPress = Date.now() - touchStartTime > 500;
+
+    if (isLongPress) {
+        // 模拟右键点击行为（移动相同颜色的球）
+        const sourceColor = slots[selectedSlot][slots[selectedSlot].length - 1];
+        const availableSpace = config.maxBalls - slots[targetSlot].length;
+        
+        if (availableSpace > 0) {
+            saveToHistory();
+            let ballsMoved = 0;
+            for (let i = slots[selectedSlot].length - 1; i >= 0; i--) {
+                if (slots[selectedSlot][i] === sourceColor && ballsMoved < availableSpace) {
+                    slots[targetSlot].push(slots[selectedSlot][i]);
+                    ballsMoved++;
+                } else {
+                    break;
+                }
+            }
+            slots[selectedSlot].splice(slots[selectedSlot].length - ballsMoved, ballsMoved);
+            moveCount += ballsMoved;
+            updateMoveCount();
+            saveGameState();
+        }
+    } else {
+        // 模拟左键点击行为（移动单个球）
+        if (slots[targetSlot].length < config.maxBalls) {
+            saveToHistory();
+            const ball = slots[selectedSlot].pop();
+            slots[targetSlot].push(ball);
+            moveCount++;
+            updateMoveCount();
+            saveGameState();
+        }
+    }
+
+    selectedSlot = null;
+    drawGame();
+}
+
+// 添加触摸开始时间变量
+let touchStartTime = 0;
+let touchStartSlot = null;
+
+// 修改 canvas 样式以禁用移动设备上的默认触摸行为
+canvas.style.touchAction = 'none'; 
