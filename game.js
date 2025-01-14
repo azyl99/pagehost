@@ -259,19 +259,28 @@ canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
 canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
 
-// 添加触屏事件处理函数
+// 添加获取触摸坐标的辅助函数
+function getTouchPos(canvas, touch) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;    // 计算X轴缩放比例
+    const scaleY = canvas.height / rect.height;   // 计算Y轴缩放比例
+    
+    return {
+        x: (touch.clientX - rect.left) * scaleX,
+        y: (touch.clientY - rect.top) * scaleY
+    };
+}
+
+// 修改 handleTouchStart 函数
 function handleTouchStart(e) {
-    e.preventDefault(); // 阻止默认滚动行为
+    e.preventDefault();
     
     const touch = e.touches[0];
-    const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    const pos = getTouchPos(canvas, touch);
+    const clickedSlot = getSlotIndex(pos.x, pos.y);
     
-    const clickedSlot = getSlotIndex(x, y);
     if (clickedSlot === -1) return;
 
-    // 记录开始触摸的时间，用于区分点击和长按
     touchStartTime = Date.now();
     touchStartSlot = clickedSlot;
 
@@ -291,11 +300,9 @@ function handleTouchEnd(e) {
     if (!selectedSlot) return;
 
     const touch = e.changedTouches[0];
-    const rect = canvas.getBoundingClientRect();
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    const pos = getTouchPos(canvas, touch);
+    const targetSlot = getSlotIndex(pos.x, pos.y);
     
-    const targetSlot = getSlotIndex(x, y);
     if (targetSlot === -1 || targetSlot === selectedSlot) {
         selectedSlot = null;
         drawGame();
@@ -348,3 +355,8 @@ let touchStartSlot = null;
 
 // 修改 canvas 样式以禁用移动设备上的默认触摸行为
 canvas.style.touchAction = 'none'; 
+
+// 修改 canvas 样式，确保宽高比保持一致
+canvas.style.width = '100%';
+canvas.style.maxWidth = `${config.slots * config.slotWidth + 40}px`;
+canvas.style.height = 'auto'; 
