@@ -297,65 +297,92 @@ function getSlotIndex(x, y) {
     return (slotIndex >= 0 && slotIndex < config.slots) ? slotIndex : -1;
 }
 
-// 添加保存历史状态的函数
+/**
+ * 将当前游戏状态保存到历史记录中
+ * 用于实现撤回功能
+ */
 function saveToHistory() {
     const currentState = {
+        // 创建槽位数组的深拷贝，防止引用关系
+        // slots.map 遍历每个槽位
+        // slot => [...slot] 对每个槽位创建新数组，复制其中的所有球
+        // 这样确保历史记录中的状态和当前状态完全独立
         slots: slots.map(slot => [...slot]),
         moveCount: moveCount
     };
     history.push(currentState);
     if (history.length > MAX_HISTORY) {
-        history.shift();  // 移除最老的记录
+        history.shift();  // 保持历史记录在限定范围内，移除最老的记录
     }
 }
 
-// 添加撤回函数
+/**
+ * 撤回到上一个状态
+ * 从历史记录中恢复游戏状态
+ */
 function undo() {
     if (history.length > 0) {
         const previousState = history.pop();
+        // 恢复每个槽位的状态，同样需要深拷贝
         slots = previousState.slots.map(slot => [...slot]);
         moveCount = previousState.moveCount;
         updateMoveCount();
-        saveGameState();  // 保存到本地存储
+        saveGameState();  // 将恢复后的状态保存到本地存储
         drawGame();
     }
 }
 
-// 修改 saveGameState 函数，加入历史记录
+/**
+ * 保存游戏状态到本地存储
+ * 包括槽位状态、移动次数和历史记录
+ */
 function saveGameState() {
     const gameState = {
-        slots: slots,
-        moveCount: moveCount,
-        history: history  // 添加历史记录
+        slots: slots,         // 当前所有槽位的状态
+        moveCount: moveCount, // 当前移动次数
+        history: history      // 历史记录，用于撤回功能
     };
+    // 将游戏状态转换为JSON字符串存储
     localStorage.setItem('ballGameState', JSON.stringify(gameState));
 }
 
-// 修改 loadGameState 函数，加载历史记录
+/**
+ * 从本地存储加载游戏状态
+ * @returns {boolean} 是否成功加载了保存的状态
+ */
 function loadGameState() {
     const savedState = localStorage.getItem('ballGameState');
     if (savedState) {
+        // 设置画布尺寸
         canvas.width = config.slots * config.slotWidth + 40;
         canvas.height = config.slotHeight + 40;
         
+        // 解析保存的游戏状态
         const gameState = JSON.parse(savedState);
         slots = gameState.slots;
         moveCount = gameState.moveCount || 0;
-        history = gameState.history || [];  // 加载历史记录
+        history = gameState.history || [];  // 恢复历史记录
         updateMoveCount();
         return true;
     }
     return false;
 }
 
-// 修改 startGame 函数
+/**
+ * 游戏入口函数
+ * 1. 尝试从本地存储加载上次未完成的游戏
+ * 2. 如果没有存档，则创建新游戏
+ */
 function startGame() {
-    if (!loadGameState()) {
-        initGame();
+    if (!loadGameState()) {    // 尝试加载存档
+        initGame();            // 如果没有存档，初始化新游戏
     }
-    updateBestScore();  // 添加这行
-    drawGame();
+    updateBestScore();        // 显示历史最佳成绩
+    drawGame();               // 绘制游戏界面
 }
+
+// 游戏启动时调用
+startGame(); 
 
 // 修改重新开始按钮的处理函数
 function resetGame() {
@@ -365,9 +392,6 @@ function resetGame() {
     drawGame();
     updateBestScore();  // 更新显示的最佳记录
 }
-
-// 开始游戏
-startGame(); 
 
 // 修改 canvas 样式以禁用移动设备上的默认触摸行为
 canvas.style.touchAction = 'none'; 
@@ -428,4 +452,4 @@ function checkGameComplete() {
         }, 100);
     }
     return true;
-} 
+}
