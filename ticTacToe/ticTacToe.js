@@ -51,7 +51,11 @@ function drawMark(x, y, player) {
     context.font = '80px Arial';
     context.textAlign = 'center';
     context.textBaseline = 'middle';
-    context.fillText(player, x * size + size / 2, y * size + size / 2);
+    // 计算格子的中心点：格子的起始位置 + 格子尺寸的一半
+    const centerX = x * size + (size / 2);
+    const centerY = y * size + (size / 2);
+    // 略微向下调整字体大小，避免视觉上不居中
+    context.fillText(player, centerX, centerY + 5);
 }
 
 /**
@@ -123,19 +127,19 @@ function fadeOutMark(x, y, mark) {
     return new Promise(resolve => {
         let opacity = 1;
         const startTime = performance.now();
-        const duration = 300; // 动画持续1秒
+        const duration = 300;
 
         function animate(currentTime) {
             const elapsed = currentTime - startTime;
             opacity = 1 - (elapsed / duration);
 
             if (opacity > 0) {
-                // 只清除棋子所在的区域，保留一点边距避免影响边框
+                // 只清除棋子区域，使用稍小的清除范围避免影响网格
                 context.clearRect(
-                    x * size + 1, 
-                    y * size + 1, 
-                    size - 2, 
-                    size - 2
+                    x * size + 2, 
+                    y * size + 2, 
+                    size - 4, 
+                    size - 4
                 );
                 
                 // 使用当前透明度绘制棋子
@@ -145,9 +149,13 @@ function fadeOutMark(x, y, mark) {
 
                 requestAnimationFrame(animate);
             } else {
-                // 完全清除并重绘边框
-                context.clearRect(x * size, y * size, size, size);
-                redrawCell(x, y);
+                // 最后一次清除，使用稍小的清除范围
+                context.clearRect(
+                    x * size + 2, 
+                    y * size + 2, 
+                    size - 4, 
+                    size - 4
+                );
                 resolve();
             }
         }
