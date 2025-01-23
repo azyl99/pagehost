@@ -100,18 +100,34 @@ function resetGame() {
 }
 
 /**
- * 撤销上一步操作
- * 恢复棋盘状态和玩家轮次
+ * 撤销上一步操作，恢复被消除的棋子
  */
 function undo() {
     if (moveHistory.length > 0) {
         const lastMove = moveHistory.pop();
+        
+        // 清除最后下的棋子
         board[lastMove.y][lastMove.x] = '';
-        currentPlayer = lastMove.player;
+        const positions = lastMove.player === 'X' ? xPositions : oPositions;
+        positions.pop();
+
+        // 如果有消失的棋子，恢复它
+        if (lastMove.causedVanish) {
+            const vanished = lastMove.causedVanish;
+            board[vanished.y][vanished.x] = vanished.player;
+            const vanishedPositions = vanished.player === 'X' ? xPositions : oPositions;
+            vanishedPositions.unshift({x: vanished.x, y: vanished.y});
+        }
+
+        // 重绘整个棋盘
         context.clearRect(0, 0, canvas.width, canvas.height);
         drawGrid();
-        for (const move of moveHistory) {
-            drawMark(move.x, move.y, move.player);
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                if (board[i][j] !== '') {
+                    drawMark(j, i, board[i][j]);
+                }
+            }
         }
     }
 }
@@ -174,7 +190,9 @@ canvas.addEventListener('click', async (event) => {
         // 放置新棋子并记录位置
         board[y][x] = currentPlayer;
         drawMark(x, y, currentPlayer);
-        moveHistory.push({ x, y, player: currentPlayer });
+        
+        // 创建移动记录，包含可能消失的棋子信息
+        const moveRecord = { x, y, player: currentPlayer };
 
         // 更新当前玩家的棋子位置队列
         if (currentPlayer === 'X') {
@@ -184,15 +202,22 @@ canvas.addEventListener('click', async (event) => {
         }
 
         // 检查并处理对手的棋子数量限制
-        // 当对手棋子达到3个时，移除最早放置的棋子
         const opponentPositions = currentPlayer === 'X' ? oPositions : xPositions;
         if (opponentPositions.length >= 3) {
             const oldestPos = opponentPositions.shift();
             const oldMark = board[oldestPos.y][oldestPos.x];
+            // 记录被消除的棋子信息
+            moveRecord.causedVanish = {
+                x: oldestPos.x,
+                y: oldestPos.y,
+                player: oldMark
+            };
             board[oldestPos.y][oldestPos.x] = '';
-            // 使用渐变效果移除棋子
             await fadeOutMark(oldestPos.x, oldestPos.y, oldMark);
         }
+
+        // 将完整的移动记录添加到历史
+        moveHistory.push(moveRecord);
 
         // 检查是否有玩家获胜
         const winner = checkWinner();
