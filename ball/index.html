@@ -50,6 +50,42 @@
         .controls button {
             margin: 0 5px;
         }
+
+        /* 添加规则弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .close-button {
+            position: absolute;
+            right: 15px;
+            top: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-button:hover {
+            color: #000;
+        }
     </style>
 </head>
 <body>
@@ -59,9 +95,50 @@
             <div>移动次数：<span id="moveCount">0</span></div>
             <div>最佳记录：<span id="bestScore">暂无</span></div>
         </div>
+        <button onclick="showRules()">游戏规则</button>
         <button onclick="resetGame()">重新开始</button>
         <button onclick="undo()">撤回</button>
     </div>
+
+    <!-- 规则弹窗 -->
+    <div id="rulesModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="hideRules()">&times;</span>
+            <h2>游戏规则</h2>
+            <ol>
+                <li>游戏中有11个槽位，每个槽位最多可以放置10个球</li>
+                <li>初始状态下，除第一个槽位外，其他槽位都装满了不同颜色的球</li>
+                <li>目标是将所有相同颜色的球都集中到同一个槽位中</li>
+                <li>操作方式：
+                    <ul>
+                        <li>点击/拖拽：选中一个球，再点击目标槽位可以转移单个球</li>
+                        <li>右键：可以一次性移动多个相同颜色的球</li>
+                    </ul>
+                </li>
+                <li>游戏胜利条件：将所有球按颜色分类完成</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- 添加规则显示/隐藏的脚本 -->
+    <script>
+        function showRules() {
+            document.getElementById('rulesModal').style.display = 'block';
+        }
+
+        function hideRules() {
+            document.getElementById('rulesModal').style.display = 'none';
+        }
+
+        // 点击弹窗外部区域关闭弹窗
+        window.onclick = function(event) {
+            const modal = document.getElementById('rulesModal');
+            if (event.target === modal) {
+                hideRules();
+            }
+        }
+    </script>
+
     <script src="game.js"></script>
 </body>
-</html> 
+</html>
