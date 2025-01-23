@@ -23,11 +23,18 @@ let oPositions = [];
 
 /**
  * 绘制3x3的棋盘网格
+ * 只在游戏开始和重置时调用一次
  */
 function drawGrid() {
-    for (let i = 1; i < 3; i++) {
+    context.beginPath();
+    context.lineWidth = 1;
+    
+    // 绘制外边框和内部分隔线
+    for (let i = 0; i <= 3; i++) {
+        // 垂直线
         context.moveTo(i * size, 0);
         context.lineTo(i * size, 300);
+        // 水平线
         context.moveTo(0, i * size);
         context.lineTo(300, i * size);
     }
@@ -106,19 +113,51 @@ function undo() {
 }
 
 /**
- * 移除指定位置的棋子
- * 清除该位置的标记并重绘格子边框
+ * 使棋子逐渐消失的动画效果
+ * @param {number} x - 格子的横坐标（0-2）
+ * @param {number} y - 格子的纵坐标（0-2）
+ * @param {string} mark - 要消失的棋子符号
+ * @returns {Promise} 动画完成后的Promise
  */
-function removeMark(x, y) {
-    context.clearRect(x * size, y * size, size, size);
-    // 重绘该格子的边框
-    context.beginPath();
-    context.rect(x * size, y * size, size, size);
-    context.stroke();
+function fadeOutMark(x, y, mark) {
+    return new Promise(resolve => {
+        let opacity = 1;
+        const startTime = performance.now();
+        const duration = 300; // 动画持续1秒
+
+        function animate(currentTime) {
+            const elapsed = currentTime - startTime;
+            opacity = 1 - (elapsed / duration);
+
+            if (opacity > 0) {
+                // 只清除棋子所在的区域，保留一点边距避免影响边框
+                context.clearRect(
+                    x * size + 1, 
+                    y * size + 1, 
+                    size - 2, 
+                    size - 2
+                );
+                
+                // 使用当前透明度绘制棋子
+                context.globalAlpha = opacity;
+                drawMark(x, y, mark);
+                context.globalAlpha = 1;
+
+                requestAnimationFrame(animate);
+            } else {
+                // 完全清除并重绘边框
+                context.clearRect(x * size, y * size, size, size);
+                redrawCell(x, y);
+                resolve();
+            }
+        }
+
+        requestAnimationFrame(animate);
+    });
 }
 
 // 处理玩家落子事件
-canvas.addEventListener('click', (event) => {
+canvas.addEventListener('click', async (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = Math.floor((event.clientX - rect.left) / size);
     const y = Math.floor((event.clientY - rect.top) / size);
@@ -141,8 +180,10 @@ canvas.addEventListener('click', (event) => {
         const opponentPositions = currentPlayer === 'X' ? oPositions : xPositions;
         if (opponentPositions.length >= 3) {
             const oldestPos = opponentPositions.shift();
+            const oldMark = board[oldestPos.y][oldestPos.x];
             board[oldestPos.y][oldestPos.x] = '';
-            removeMark(oldestPos.x, oldestPos.y);
+            // 使用渐变效果移除棋子
+            await fadeOutMark(oldestPos.x, oldestPos.y, oldMark);
         }
 
         // 检查是否有玩家获胜

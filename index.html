@@ -1,67 +1,144 @@
 <!DOCTYPE html>
 <html lang="zh">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>球类排序游戏</title>
+    <title>游戏中心</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #f0f0f0;
+        /* CSS样式重置，清除默认边距和内边距 */
+        * {
             margin: 0;
-            padding: 20px;
-            font-family: Arial, sans-serif;
-            min-height: 100vh;
+            padding: 0;
+            box-sizing: border-box;  /* 盒模型计算方式：边框和内边距包含在宽高中 */
         }
-        canvas {
-            background-color: white;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            border-radius: 5px;
-            max-width: 95vw;
-            height: auto;
-            margin-top: 150px;
+
+        /* 页面整体样式 */
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;  /* 设置微软雅黑字体 */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);  /* 渐变背景 */
+            min-height: 100vh;  /* 最小高度为视窗高度 */
+            padding: 2rem;  /* 页面内边距 */
         }
-        .controls {
-            margin-top: 20px;
+
+        /* 内容容器，限制最大宽度并居中 */
+        .container {
+            max-width: 1200px;  /* 最大宽度1200像素 */
+            margin: 0 auto;  /* 左右自动边距实现居中 */
         }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+
+        /* 标题样式 */
+        h1 {
+            text-align: center;  /* 文字居中 */
+            color: #2c3e50;  /* 标题颜色 */
+            margin-bottom: 2rem;  /* 下方间距 */
+            font-size: 2.5rem;  /* 字体大小 */
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);  /* 文字阴影效果 */
         }
-        button:hover {
-            background-color: #45a049;
+
+        /* 游戏卡片网格布局 */
+        .games-grid {
+            display: grid;  /* 使用网格布局 */
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));  /* 响应式列宽 */
+            gap: 2rem;  /* 卡片之间的间距 */
+            padding: 1rem;  /* 内边距 */
         }
-        .counter {
-            font-size: 18px;
-            margin-bottom: 15px;
-            color: #333;
-            text-align: center;
+
+        /* 游戏卡片样式 */
+        .game-card {
+            background: white;  /* 白色背景 */
+            border-radius: 15px;  /* 圆角边框 */
+            overflow: hidden;  /* 隐藏溢出内容 */
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);  /* 阴影效果 */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;  /* 过渡动画效果 */
+            cursor: pointer;  /* 鼠标指针变为手型 */
         }
-        .counter div {
-            margin: 5px 0;
+
+        /* 卡片悬停效果 */
+        .game-card:hover {
+            transform: translateY(-5px);  /* 向上浮动5像素 */
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);  /* 加深阴影 */
         }
-        .controls button {
-            margin: 0 5px;
+
+        /* 游戏图片容器 */
+        .game-image {
+            width: 100%;  /* 宽度充满容器 */
+            height: 200px;  /* 固定高度 */
+            background-size: contain;  /* 图片完整显示并保持比例 */
+            background-position: center;  /* 图片居中 */
+            background-repeat: no-repeat;  /* 图片不重复 */
+            background-color: #f5f5f5;  /* 图片背景色 */
+        }
+
+        /* 游戏信息区域 */
+        .game-info {
+            padding: 1.5rem;  /* 内边距 */
+        }
+
+        /* 游戏标题 */
+        .game-title {
+            font-size: 1.5rem;  /* 字体大小 */
+            color: #2c3e50;  /* 文字颜色 */
+            margin-bottom: 0.5rem;  /* 下方间距 */
+        }
+
+        /* 游戏描述文本 */
+        .game-description {
+            color: #666;  /* 文字颜色 */
+            font-size: 0.9rem;  /* 字体大小 */
+            line-height: 1.5;  /* 行高 */
+        }
+
+        /* 游戏链接样式 */
+        .game-link {
+            text-decoration: none;  /* 移除下划线 */
+            color: inherit;  /* 继承父元素颜色 */
+        }
+
+        /* 移动设备适配 */
+        @media (max-width: 768px) {
+            .games-grid {
+                grid-template-columns: 1fr;  /* 在小屏幕上改为单列布局 */
+            }
         }
     </style>
 </head>
+
 <body>
-    <canvas id="gameCanvas"></canvas>
-    <div class="controls">
-        <div class="counter">
-            <div>移动次数：<span id="moveCount">0</span></div>
-            <div>最佳记录：<span id="bestScore">暂无</span></div>
+    <div class="container">
+        <h1>游戏列表</h1>
+        <div class="games-grid">
+            <a href="ball/index.html" class="game-link">
+                <div class="game-card">
+                    <div class="game-image" style="background-image: url('ball/icon.jpg');">
+                    </div>
+                    <div class="game-info">
+                        <h2 class="game-title">小球塔</h2>
+                        <p class="game-description">汉诺塔的升级版，用最少的步数将相同颜色的小球搬运到同一个柱子上</p>
+                    </div>
+                </div>
+            </a>
+            
+            <a href="ticTacToe/index.html" class="game-link">
+                <div class="game-card">
+                    <div class="game-image" style="background-image: url('ticTacToe/icon.jpg');">
+                    </div>
+                    <div class="game-info">
+                        <h2 class="game-title">消失三子棋</h2>
+                        <p class="game-description">经典三子棋游戏的创新版本。每位玩家最多保持三个棋子在棋盘上，策略性更强！</p>
+                    </div>
+                </div>
+            </a>
+
+            <div class="game-card">
+                <div class="game-image" style="background-image: url('https://picsum.photos/300/200?random=3');"></div>
+                <div class="game-info">
+                    <h2 class="game-title">即将推出</h2>
+                    <p class="game-description">更多有趣的游戏正在开发中，敬请期待...</p>
+                </div>
+            </div>
         </div>
-        <button onclick="resetGame()">重新开始</button>
-        <button onclick="undo()">撤回</button>
     </div>
-    <script src="game.js"></script>
 </body>
-</html> 
+
+</html>
