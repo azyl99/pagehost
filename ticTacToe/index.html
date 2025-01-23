@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>井字棋</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+        }
+        canvas {
+            border: 1px solid black;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            max-width: 95vw;
+            height: auto;
+            margin-top: 150px;
+        }
+        .controls {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .controls button {
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="ticTacToe" width="300" height="300"></canvas>
+    <div class="controls">
+        <button onclick="resetGame()">重新开始</button>
+        <button onclick="undo()">撤回</button>
+    </div>
+    <script src="ticTacToe.js"></script>
+</body>
+</html>
