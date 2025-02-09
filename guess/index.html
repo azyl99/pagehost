@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>猜颜色</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        canvas {
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .ball-count-buttons {
+            display: flex;
+            flex-direction: column;
+            margin-left: 20px;
+        }
+
+        .ball-count-buttons button {
+            width: 60px;
+            margin: 5px;
+        }
+
+        .ball-count-buttons button.active {
+            background-color: #28a745;
+        }
+
+        .game-container {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="600" height="300"></canvas>
+        <div class="ball-count-buttons">
+            <button onclick="selectBallCount(5)" class="active">5</button>
+            <button onclick="selectBallCount(6)">6</button>
+            <button onclick="selectBallCount(7)">7</button>
+            <button onclick="selectBallCount(8)">8</button>
+            <button onclick="selectBallCount(9)">9</button>
+            <button onclick="selectBallCount(10)">10</button>
+        </div>
+    </div>
+    <div>
+        <button onclick="checkGuess()">提交猜测</button>
+        <button onclick="restartGame()">重新开始</button>
+    </div>
+    <p id="resultText"></p>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const colors = ['R', 'G', 'B', 'Y', 'P', 'O', 'C', 'M', 'K', 'A'];
+        let correctOrder = [];
+        let currentOrder = [];
+        const ballRadius = 20;
+        const spacing = 10;
+        let selectedIndex = -1;
+        let isAnimating = false;
+        let animationStartTime;
+        let animationDuration = 300;
+        let startPositions = [];
+        let endPositions = [];
+        let ballCount = 5;
+
+        // 初始化游戏
+        function initGame() {
+            correctOrder = colors.slice(0, ballCount).sort(() => Math.random() - 0.5);
+            currentOrder = [...correctOrder].sort(() => Math.random() - 0.5);
+            drawBalls(currentOrder, 100);
+            document.getElementById('resultText').textContent = '';
+            selectedIndex = -1;
+        }
+
+        // 绘制小球
+        function drawBalls(order, y) {
+            const colorMap = {
+                'R': 'red',
+                'G': 'green',
+                'B': 'blue',
+                'Y': 'yellow',
+                'P': 'purple',
+                'O': 'orange',
+                'C': 'cyan',
+                'M': 'magenta',
+                'K': 'black',
+                'A': 'brown'
+            };
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let x = 50;
+            for (let i = 0; i < order.length; i++) {
+                ctx.beginPath();
+                ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = colorMap[order[i]];
+                ctx.fill();
+                if (i === selectedIndex) {
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'black';
+                    ctx.stroke();
+                }
+                ctx.closePath();
+                x += ballRadius * 2 + spacing;
+            }
+        }
+
+        // 绘制动画中的小球
+        function drawAnimatedBalls(time) {
+            const progress = Math.min((time - animationStartTime) / animationDuration, 1);
+            const colorMap = {
+                'R': 'red',
+                'G': 'green',
+                'B': 'blue',
+                'Y': 'yellow',
+                'P': 'purple',
+                'O': 'orange',
+                'C': 'cyan',
+                'M': 'magenta',
+                'K': 'black',
+                'A': 'brown'
+            };
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < currentOrder.length; i++) {
+                const x = startPositions[i] + (endPositions[i] - startPositions[i]) * progress;
+                ctx.beginPath();
+                ctx.arc(x, 100, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = colorMap[currentOrder[i]];
+                ctx.fill();
+                if (i === selectedIndex) {
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = 'black';
+                    ctx.stroke();
+                }
+                ctx.closePath();
+            }
+            if (progress < 1) {
+                requestAnimationFrame(drawAnimatedBalls);
+            } else {
+                isAnimating = false;
+            }
+        }
+
+        // 检查是否点击在小球上
+        function isClickOnBall(x, y) {
+            let currentX = 50;
+            for (let i = 0; i < currentOrder.length; i++) {
+                const dx = x - currentX;
+                const dy = y - 100;
+                if (dx * dx + dy * dy <= ballRadius * ballRadius) {
+                    return i;
+                }
+                currentX += ballRadius * 2 + spacing;
+            }
+            return -1;
+        }
+
+        // 交换两个小球的位置并添加动画
+        function swapBalls(index1, index2) {
+            if (isAnimating) return;
+            isAnimating = true;
+            animationStartTime = performance.now();
+            startPositions = [];
+            endPositions = [];
+            let x = 50;
+            for (let i = 0; i < currentOrder.length; i++) {
+                startPositions.push(x);
+                x += ballRadius * 2 + spacing;
+            }
+            const temp = currentOrder[index1];
+            currentOrder[index1] = currentOrder[index2];
+            currentOrder[index2] = temp;
+            x = 50;
+            for (let i = 0; i < currentOrder.length; i++) {
+                endPositions.push(x);
+                x += ballRadius * 2 + spacing;
+            }
+            requestAnimationFrame(drawAnimatedBalls);
+        }
+
+        // 处理点击事件
+        function handleClick(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const clickedIndex = isClickOnBall(x, y);
+            if (clickedIndex !== -1) {
+                if (selectedIndex === -1) {
+                    selectedIndex = clickedIndex;
+                    drawBalls(currentOrder, 100);
+                } else {
+                    if (selectedIndex !== clickedIndex) {
+                        swapBalls(selectedIndex, clickedIndex);
+                    }
+                    selectedIndex = -1;
+                }
+            }
+        }
+
+        // 检查用户猜测
+        function checkGuess() {
+            let correctCount = 0;
+            for (let i = 0; i < currentOrder.length; i++) {
+                if (currentOrder[i] === correctOrder[i]) {
+                    correctCount++;
+                }
+            }
+            const resultText = document.getElementById('resultText');
+            resultText.textContent = `你猜对了 ${correctCount} 个颜色的顺序。`;
+        }
+
+        // 重启游戏
+        function restartGame() {
+            initGame();
+        }
+
+        // 选择小球数量
+        function selectBallCount(count) {
+            ballCount = count;
+            const buttons = document.querySelectorAll('.ball-count-buttons button');
+            buttons.forEach(button => {
+                if (parseInt(button.textContent) === count) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // 添加事件监听器
+        canvas.addEventListener('click', handleClick);
+
+        // 初始化游戏
+        initGame();
+    </script>
+</body>
+
+</html>
